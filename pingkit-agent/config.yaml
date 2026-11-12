@@ -1,0 +1,127 @@
+# PingKit Agent, Home Assistant app, the name since 2026.2 for what was an add-on (4.0 plan,
+# sections 4.6 and 6; checked against the Supervisor's source and
+# https://contributors.home-assistant.io/apps/reference/configuration/ on 2026-11-07).
+#
+# It wraps the same multi-arch image as Docker and the NAS files, through the short
+# Dockerfile beside this file: FROM ghcr.io/pingkit/agent at the tag equal to `version`
+# (the Supervisor passes it as BUILD_VERSION), then USER 0:0. There is no `image:` key, so
+# the Supervisor builds that on the machine; nothing is compiled. Why root at the start
+# (lane H8b, docs/headless-agent/packaging.md, "Home Assistant /data"): the Supervisor
+# creates /data as root, mode 0755, with no option to give it to another user, and the
+# image's user 65532 cannot create its store there (measured). Started as root with
+# SUPERVISOR_TOKEN set, the agent takes /data and becomes 65532 for good before it reads
+# any input, with every capability set empty and no_new_privs on. It needs no
+# `privileged` entry: the CHOWN, SETUID and SETGID it uses for that moment are in Docker's
+# default set, which the Supervisor leaves in place, and the agent drops the rest first.
+name: PingKit Agent
+version: "1.0.0"
+slug: pingkit_agent
+description: Watches your own network from Home Assistant and alerts PingKit on your iPhone.
+url: https://pingkit.app/agent/
+arch:
+  - aarch64
+  - amd64
+stage: experimental
+startup: application
+boot: auto
+# The agent is PID 1 and handles SIGTERM itself (it closes the store), so Docker's init
+# is not needed; the image is not a Home Assistant base image.
+init: false
+timeout: 20
+
+# The one privilege, as in every other packaging: the host's network, so the agent can
+# read the neighbour table and hear mDNS and SSDP. No `privileged` capabilities, no
+# full_access, and the custom AppArmor profile beside this file (`apparmor.txt`), so the
+# security rating is 5 + 2 (ingress) + 1 (the profile) - 1 (host_network) = 7 of 8. No
+# `hassio_api`, `homeassistant_api` or `hassio_role`: the Supervisor sets SUPERVISOR_TOKEN for
+# every add-on without them, and the two calls the agent makes with it, /addons/self/info and
+# /services/mqtt, are on the Supervisor's list that needs none (api/middleware/security.py).
+host_network: true
+ports:
+  7474/tcp: 7474
+  7475/tcp: 7475
+webui: http://[HOST]:[PORT:7474]/
+# /livez, not /healthz: /healthz may say 503 through an outage, and a restart then would lose
+# the outage the agent is recording. /livez reads the agent's own loops and nothing else.
+watchdog: http://[HOST]:[PORT:7474]/livez
+# The sidebar has its own listener (IngressDoor.swift): 7474 is the page on the LAN, which
+# refuses the browser's Host and any frame, and 0 is the ingress guide's advice for the host
+# network, where a fixed port can clash. The Supervisor picks one from 62000 to 65500 and the
+# agent reads it from /addons/self/info. It answers 172.30.32.2 alone.
+ingress: true
+ingress_port: 0
+panel_icon: mdi:lan-check
+panel_title: PingKit Agent
+# The panel can pair and unpair this agent, so it is for administrators, which is the default.
+panel_admin: true
+tmpfs: true
+
+# Optional: with Mosquitto present the Supervisor hands the agent its broker and credentials
+# through /services/mqtt, and without it the agent runs as before, so `want`, never `need`.
+services:
+  - mqtt:want
+
+# Hot: the agent keeps watching during a backup. The live store may be caught mid-write, and
+# a store that restores damaged fills from the newest snapshot in backup/, which is a finished
+# copy and is why snapshots stay in. A backup carries the pairing (identity/ and the store), so
+# a restore brings it back. Left out, as PurePath.match reads these against the full path:
+# crash reports, damaged copies kept for a support request (an identity file set aside may
+# hold a key), a half-written snapshot, the WAL index, which SQLite rebuilds, and the run
+# marker with its record, since a hot backup always holds the marker and a restore would read
+# as a stop that was not clean.
+backup: hot
+backup_exclude:
+  - "crashes/*"
+  - "*.corrupt-*"
+  - "*.damaged-*"
+  - "*.tmp"
+  - "*.sqlite-shm"
+  - "running"
+  - "unclean-exit.json"
+
+# /data is the add-on's private, persistent folder (always mounted read and write; listed
+# so the file says so). The image already sets PINGKIT_STATE_DIR=/data.
+map:
+  - data:rw
+
+# The image reads its settings from PINGKIT_* environment variables only. `legacy: true`
+# makes the Supervisor pass each top-level string or number option as an environment
+# variable under its own key, so the option keys ARE the variable names (section 5.3) and
+# translations/en.yaml gives them readable names. Switches are strings (on/off) for the
+# same reason. TZ comes from the Supervisor; PINGKIT_STATE_DIR is fixed at /data.
+legacy: true
+options:
+  PINGKIT_CLAIM_CODE: ""
+  PINGKIT_NOTIFY_URLS: []
+schema:
+  PINGKIT_CLAIM_CODE: "match(^$|^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z -]{8,11}$)?"
+  PINGKIT_PORT: port?
+  PINGKIT_API_PORT: port?
+  PINGKIT_BIND: str?
+  PINGKIT_IFACE: "match(^[A-Za-z0-9_.@-]{1,15}$)?"
+  PINGKIT_SWEEP_INTERVAL: int(60,86400)?
+  PINGKIT_ARP_INTERVAL: int(5,3600)?
+  PINGKIT_PING_INTERVAL: int(10,3600)?
+  PINGKIT_INTERNET_HOSTS: str?
+  PINGKIT_ICMP: list(auto|dgram|off)?
+  PINGKIT_MDNS: list(auto|active|off)?
+  PINGKIT_SSDP: list(on|off)?
+  PINGKIT_STATUS_PAGE: list(on|off)?
+  PINGKIT_OFFLINE_ALERTS: list(on|off)?
+  PINGKIT_OFFLINE_THRESHOLD: int(1,20)?
+  PINGKIT_LEARNING_DAYS: int(0,30)?
+  PINGKIT_EVENTS_PER_HOUR: int(1,60)?
+  PINGKIT_WORKER_URL: url?
+  PINGKIT_LOG_LEVEL: list(debug|info|warning|error)?
+  PINGKIT_LOG_FORMAT: list(json|text)?
+  PINGKIT_LOCALE: list(ar|cs|da|de|el|en|es|fi|fr|he|id|it|ja|ko|ms|nb|nl|pl|pt-BR|ru|sk|sv|th|tr|vi|zh-Hans|zh-Hant)?
+  PINGKIT_MQTT_URL: "match(^$|^off$|^mqtts?://[^@/ ]+$)?"
+  PINGKIT_MQTT_USERNAME: str?
+  PINGKIT_MQTT_PASSWORD: password?
+  PINGKIT_MQTT_TRACKERS: list(personal|all|none)?
+  PINGKIT_MQTT_CONSIDER_HOME: int(30,3600)?
+  # A list, so `legacy: true` does not pass it to the environment: the agent reads it from
+  # options.json, masked in the UI, where a URL with a token may be (lane A7).
+  PINGKIT_NOTIFY_URLS: ["password?"]
+  PINGKIT_SPEED_TEST: list(daily|manual|off)?
+  PINGKIT_SPEED_BUDGET_MB: int(100,10000000)?

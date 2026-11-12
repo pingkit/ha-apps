@@ -1,0 +1,80 @@
+# PingKit Agent's AppArmor profile for Home Assistant (lane H1; docs/headless-agent/packaging.md,
+# "The Home Assistant app"). The Supervisor loads it at install under the app's ID and renames
+# the one `profile` line below and nothing else, so nothing else here may name the slug:
+# write @{profile_name}. `make agent-apparmor-check` enforces it in a real kernel.
+#include <tunables/global>
+
+profile pingkit_agent flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # The start, and only the start: AddOnPrivileges.swift uses these to take /data and become
+  # 65532, then empties every capability set for good, bounding set included. dac_override is
+  # what reads options.json through a /data that is already 65532's at 0700.
+  capability chown,
+  capability dac_override,
+  capability setgid,
+  capability setpcap,
+  capability setuid,
+
+  # IP sockets, and netlink for the route and neighbour tables. Ping is an unprivileged
+  # datagram socket. Never a raw or packet socket, in any build.
+  network inet dgram,
+  network inet stream,
+  network inet6 dgram,
+  network inet6 stream,
+  network netlink raw,
+  deny network inet raw,
+  deny network inet6 raw,
+  deny network packet,
+
+  # The agent, and the runtime's crash helper, the one other program it ever runs, and only
+  # as it dies. Both stay in this profile.
+  /usr/local/bin/pingkit-agent rix,
+  /usr/local/bin/swift-backtrace rix,
+  /usr/local/bin/ r,
+  /usr/local/bin/PingKitCore_PingKitCore.resources/ r,
+  /usr/local/bin/PingKitCore_PingKitCore.resources/** r,
+
+  # Its state.
+  /data/ rw,
+  /data/** rwk,
+  /tmp/ rw,
+  /tmp/** rwk,
+  # Foundation tries to make these under a home the agent's user cannot write. Refused quietly.
+  deny /{,root/,home/*/}.cache/ w,
+  deny /{,root/,home/*/}.local/ w,
+
+  # Name lookups, time zones and CA roots.
+  /etc/hosts r,
+  /etc/hostname r,
+  /etc/resolv.conf r,
+  /etc/nsswitch.conf r,
+  /etc/host.conf r,
+  /etc/passwd r,
+  /etc/group r,
+  /etc/localtime r,
+  /etc/ssl/** r,
+  /usr/share/zoneinfo/** r,
+
+  # What it reads of the machine: the tables, interfaces, and where it is running.
+  @{PROC}/ r,
+  @{PROC}/@{pid}/net/** r,
+  @{PROC}/@{pid}/status r,
+  @{PROC}/@{pid}/stat r,
+  @{PROC}/@{pid}/cgroup r,
+  @{PROC}/@{pid}/comm r,
+  @{PROC}/@{pid}/task/ r,
+  @{PROC}/@{pid}/task/*/comm r,
+  @{PROC}/@{pid}/task/*/status r,
+  @{PROC}/sys/net/** r,
+  # This boot's identifier, so a start can tell a power cut or reboot from a crash (RunMarker).
+  @{PROC}/sys/kernel/random/boot_id r,
+  @{PROC}/device-tree/model r,
+  @{sys}/class/net/ r,
+  @{sys}/class/net/** r,
+  @{sys}/devices/** r,
+
+  # Docker's stop, and itself.
+  signal (receive) peer=unconfined,
+  signal (send, receive) peer=@{profile_name},
+}

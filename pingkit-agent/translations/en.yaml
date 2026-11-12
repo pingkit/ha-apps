@@ -1,0 +1,107 @@
+# English names and descriptions for the Home Assistant app's options and ports. The keys are the
+# environment variable names (config.yaml, legacy: true). This file is the English source:
+# scripts/export-agent-strings.py writes the other 26 locales from it and the translations
+# in scripts/l10n/agent-strings.json (lane H-L10n).
+configuration:
+  PINGKIT_CLAIM_CODE:
+    name: Claim code
+    description: >-
+      The 8-character code PingKit on your iPhone shows under Agents, Add an Agent. It works
+      once and expires after 10 minutes; clear it after pairing if you like.
+  PINGKIT_PORT:
+    name: Status page port
+    description: The port of the status page (HTTP). Default 7474.
+  PINGKIT_API_PORT:
+    name: iPhone connection port
+    description: The HTTPS port your iPhone connects to the agent on. Default 7475.
+  PINGKIT_BIND:
+    name: Listen address
+    description: The status page's address. Default 0.0.0.0. The iPhone connection always listens on every interface.
+  PINGKIT_IFACE:
+    name: Network interface
+    description: "The interface to watch, for example end0 or eth0. Default: the one with the default route."
+  PINGKIT_SWEEP_INTERVAL:
+    name: Sweep interval (seconds)
+    description: Seconds between active sweeps of your network. Default 900 (15 minutes).
+  PINGKIT_ARP_INTERVAL:
+    name: Neighbour table interval (seconds)
+    description: Seconds between reads of the neighbour (ARP) table. Default 30.
+  PINGKIT_PING_INTERVAL:
+    name: Internet check interval (seconds)
+    description: Seconds between internet checks. Default 60.
+  PINGKIT_INTERNET_HOSTS:
+    name: Internet check addresses
+    description: One to four IP addresses, comma-separated. Default 1.1.1.1,8.8.8.8.
+  PINGKIT_ICMP:
+    name: Ping
+    description: auto uses ping where the system allows it and ARP and TCP checks otherwise; off never pings.
+  PINGKIT_MDNS:
+    name: Bonjour (mDNS)
+    description: auto listens and makes the agent visible to your iPhone; active only sends queries, so your iPhone does not see it; off turns Bonjour off.
+  PINGKIT_SSDP:
+    name: UPnP discovery (SSDP)
+    description: Listen for UPnP devices. Default on.
+  PINGKIT_STATUS_PAGE:
+    name: Status page
+    description: off turns the status page off entirely. Default on.
+  PINGKIT_OFFLINE_ALERTS:
+    name: Device Offline alerts
+    description: >-
+      Alert when a device leaves your network. A device is reported offline after three
+      missed sweeps, which can take up to 45 minutes at the default sweep. Default off.
+  PINGKIT_OFFLINE_THRESHOLD:
+    name: Missed sweeps before offline
+    description: Default 3.
+  PINGKIT_LEARNING_DAYS:
+    name: Learning days
+    description: Days the agent learns your devices before New Device alerts start. Default 1.
+  PINGKIT_EVENTS_PER_HOUR:
+    name: Alerts per hour
+    description: The most alerts the agent sends in an hour. Default 60.
+  PINGKIT_WORKER_URL:
+    name: Relay address
+    description: For development only. Leave empty.
+  PINGKIT_LOG_LEVEL:
+    name: Log level
+    description: Default info.
+  PINGKIT_LOG_FORMAT:
+    name: Log format
+    description: json or text. Default json.
+  PINGKIT_LOCALE:
+    name: Status page language
+    description: A language code such as de or pt-BR. Empty follows the browser, then English.
+  PINGKIT_MQTT_URL:
+    name: MQTT broker
+    description: >-
+      Leave empty to use the Mosquitto app in Home Assistant. Otherwise mqtt://host:1883 or
+      mqtts://host:8883, or off for no MQTT.
+  PINGKIT_MQTT_USERNAME:
+    name: MQTT user name
+    description: Only for a broker you named above. Mosquitto in Home Assistant needs nothing here.
+  PINGKIT_MQTT_PASSWORD:
+    name: MQTT password
+    description: Only for a broker you named above. Mosquitto in Home Assistant needs nothing here.
+  PINGKIT_MQTT_TRACKERS:
+    name: Presence trackers
+    description: personal gives phones, tablets and anything on a private Wi-Fi address a tracker; all gives every device one; none turns them off.
+  PINGKIT_MQTT_CONSIDER_HOME:
+    name: Seconds before away
+    description: How long a tracked device stays home after its last answer, so a sleeping phone does not read as gone. Default 180.
+  PINGKIT_NOTIFY_URLS:
+    name: Notification targets
+    description: >-
+      Where the agent also sends its alerts: one URL per row for ntfy, Telegram, Discord,
+      Pushover, a webhook or Apprise. No subscription needed.
+  PINGKIT_SPEED_TEST:
+    name: Speed test
+    description: >-
+      daily runs one test a day at a random minute, and when you ask from the iPhone; manual
+      runs one only when you ask, for a connection with a data cap; off never runs one.
+  PINGKIT_SPEED_BUDGET_MB:
+    name: Speed test data budget
+    description: >-
+      The most the speed tests may use in a calendar month, in megabytes. No test starts past
+      it. Default 10000.
+network:
+  7474/tcp: Status page (HTTP)
+  7475/tcp: iPhone connection (HTTPS)

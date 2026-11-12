@@ -1,0 +1,6 @@
+# The Home Assistant app repository github.com/pingkit/ha-apps (4.0 plan, section 6). Users
+# add https://github.com/pingkit/ha-apps in the app store; without this file the Supervisor
+# does not load the repository.
+name: PingKit apps
+url: https://github.com/pingkit/ha-apps
+maintainer: PingKit <https://pingkit.app/agent/>
